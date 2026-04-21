@@ -1,10 +1,13 @@
 #include <Audio.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <Sdfat.h>
-#include <SerialFlash.h>
+#include <SD.h>
 
 #include <Bounce.h>
+
+#ifdef __AVR__
+#define FsFile File32
+#endif
 
 // VARS
 int ledPin = 14;
@@ -17,19 +20,14 @@ float currentMillis; //current ms timestamp
 float btnPressMillis; //ms Timestamp when btn was pressed
 int debounceMillis = 50; //button debounce time in ms
 
-//audio data vars
-uint32_t subChunk1Size = 16;
-uint16_t audioFormat = 1;
-uint16_t numChannels = 2;
-uint32_t sampleRate = 44100;
-uint16_t bitsPerSample = 16;
-
 //SDCard Stuff
+
+const char *session_root_dir = "/JHR"; //root directory where the files are stored
 const char *file_prefix = "/aufnahme_"; //prefix of rec file
 const char *file_suffix = ".wav"; //suffix of rec file
 char nextRecFileName[64]; //full name of next file to be recorded
-File recFile; //Stream that will be saved to SD Card
-const int chipSelect = BUILTIN_SDCARD;
+FsFile recFile; //Stream that will be saved to SD Card
+const int chipSelect = 10; //teensy audio board
 int fileCount = 0; //how many files are created in current recording Session
 
 const char* dirPrefix = "/Session_"; //prefix of the directory name
@@ -59,49 +57,53 @@ AudioConnection          patchCord2(i2s1, 1, queueR, 0);
 
 /// writes wav file header
 /// expects file and size
-void writeWavHeader(File &f, uint32_t dataSize) {
-  f.seek(0);
+// void writeWavHeader(File &f, uint32_t dataSize) {
+//   f.seek(0);
 
-  f.write("RIFF", 4);
-  uint32_t chunkSize = 36 + dataSize;
-  f.write((uint8_t*)&chunkSize, 4);
-  f.write("WAVE", 4);
+//   f.write("RIFF", 4);
+//   uint32_t chunkSize = 36 + dataSize;
+//   f.write((uint8_t*)&chunkSize, 4);
+//   f.write("WAVE", 4);
 
-  f.write("fmt ", 4);
+//   f.write("fmt ", 4);
   
-  uint32_t byteRate = sampleRate * numChannels * bitsPerSample / 8;
-  uint16_t blockAlign = numChannels * bitsPerSample / 8;
+//   uint32_t byteRate = sampleRate * numChannels * bitsPerSample / 8;
+//   uint16_t blockAlign = numChannels * bitsPerSample / 8;
 
-  f.write((uint8_t*)&subChunk1Size, 4);
-  f.write((uint8_t*)&audioFormat, 2);
-  f.write((uint8_t*)&numChannels, 2);
-  f.write((uint8_t*)&sampleRate, 4);
-  f.write((uint8_t*)&byteRate, 4);
-  f.write((uint8_t*)&blockAlign, 2);
-  f.write((uint8_t*)&bitsPerSample, 2);
+//   f.write((uint8_t*)&subChunk1Size, 4);
+//   f.write((uint8_t*)&audioFormat, 2);
+//   f.write((uint8_t*)&numChannels, 2);
+//   f.write((uint8_t*)&sampleRate, 4);
+//   f.write((uint8_t*)&byteRate, 4);
+//   f.write((uint8_t*)&blockAlign, 2);
+//   f.write((uint8_t*)&bitsPerSample, 2);
 
-  f.write("data", 4);
-  f.write((uint8_t*)&dataSize, 4);
-}
+//   f.write("data", 4);
+//   f.write((uint8_t*)&dataSize, 4);
+// }
 
 /// starts SD card recording
 void record_start(){
-  Serial.println("recording...");
-  //setNextRecordingName(SD, nextDirName, 0);
-
+  if (setNextRecordingName()) { //set the recording file name
+    //yaaaaa letzgoooo!
+  } else {
+    //we're fucked, but it'll be alright
+  }
+  
   //open output file in Write mode
-  recFile = SD.open(nextRecFileName, FILE_WRITE);
+  recFile = SD.sdfs.open(nextRecFileName, O_WRITE | O_CREAT);
   //audioStreamWAVToFile.begin(out, i2sStream);
   blnRecording = true;
   digitalWrite(ledPin, blnRecording);
+  Serial.println("recording...");
 }
 
 /// stops SD card recording
 void record_end(){
-    Serial.println("recording end");
     recFile.close();
     blnRecording = false;
     digitalWrite(ledPin, blnRecording);
+    Serial.println("recording end");
 }
 
 
@@ -228,15 +230,15 @@ void setup() {
   while(!Serial); // wait for serial to be ready
 
   //Open SD drive
-  sd_setup();
+  if (sd_setup()){
+    error_blink(69); //show success message!!
+  } else {
+    //todo, what now?
+    SD.sdfs.ls();
+  }
 
   AudioMemory(100); //give much memory
-
-  error_blink(69); //show success message!!
   lastBtnState = digitalRead(recBtnPin);
-  //startNetwork();
-
-  //createSessionDir(SD, "/", 0); //count all directories to determine in which dir to save next
 }
 
 void loop() {
