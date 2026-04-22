@@ -300,6 +300,10 @@ void setup() {
 
   AudioMemory(teensy_audio_memory); //give much memory
   lastBtnState = digitalRead(recBtnPin);
+  
+  //expose SD card to computer when connected via USB
+  MTP.begin();
+  MTP.addFilesystem(SD, "OR_JHR");
 }
 
 void loop() {
@@ -308,6 +312,9 @@ void loop() {
   //write audio stream to SD card if recording is armed
   if (blnRecording) {
     recordingLoop();
+  } else {
+    //update file system access only when not recording
+    MTP.loop();
   }
 
   //read if a button has been pressed
