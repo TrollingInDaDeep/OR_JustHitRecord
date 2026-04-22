@@ -56,8 +56,13 @@ uint16_t bitsPerSample = 16;
 AudioInputI2S            i2s1;           //xy=882,406
 AudioRecordQueue         queueR;         //xy=1168,489
 AudioRecordQueue         queueL;         //xy=1182,356
+AudioAnalyzePeak         peak1;
+AudioControlSGTL5000 sgtl5000;
+
 AudioConnection          patchCord1(i2s1, 0, queueL, 0);
 AudioConnection          patchCord2(i2s1, 1, queueR, 0);
+AudioConnection          patchCord3(i2s1, 0, peak1, 0);
+AudioConnection          patchCord4(i2s1, 1, peak1, 0);
 // GUItool: end automatically generated code
 
 //functions
@@ -143,7 +148,7 @@ void recordingLoop() {
   //crashes ---> //if (queueL.available() && queueR.available()) { // check both queues if they have data
   if (queueL.available() >= NBLOCKS && queueR.available() >= NBLOCKS) { //check both queues if they have required amount of blocks inside
     int idx = 0; //index which bit in the buffer we're at
-
+    
     for (int b = 0; b < NBLOCKS; b++) { //loop through blocks fast to free up queue
       int16_t *l = (int16_t*)queueL.readBuffer(); //write block from left queue to l byte
       int16_t *r = (int16_t*)queueR.readBuffer(); //write block from right queue to r byte
@@ -281,6 +286,24 @@ void readBtn() {
   }
 }
 
+///print input signal
+///check if somethings coming in
+void printPeak()
+{
+	Serial.println(peak1.read());
+	delay(5);
+}
+
+//reads peak voltage and dims the LED accordingly
+//so we can see if signal is coming in
+void vuMeter() {
+  if (peak1.available()){
+    uint8_t level = peak1.read() * 30.0;
+    int brightness = map(level, 0, 30, 0, 127);
+    analogWrite(ledPin, brightness);
+  }
+}
+
 void setup() {
   //LED Pin Modes
   pinMode(ledPin, OUTPUT);
@@ -298,7 +321,14 @@ void setup() {
     SD.sdfs.ls();
   }
 
+
   AudioMemory(teensy_audio_memory); //give much memory
+  
+  //initialize the Audio board chip
+  sgtl5000.enable();
+  sgtl5000.inputSelect(AUDIO_INPUT_LINEIN);
+  sgtl5000.volume(0.8);
+
   lastBtnState = digitalRead(recBtnPin);
   
   //expose SD card to computer when connected via USB
@@ -308,10 +338,14 @@ void setup() {
 
 void loop() {
   currentMillis = millis(); //store current ms timestamp
-  
+  //printPeak(); //prints input signal, check if something's coming in
+
+
   //write audio stream to SD card if recording is armed
   if (blnRecording) {
     recordingLoop();
+    vuMeter(); //write input peak to LED brightness
+
   } else {
     //update file system access only when not recording
     MTP.loop();
