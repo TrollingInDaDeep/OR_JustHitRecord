@@ -3,8 +3,6 @@
 #include <SPI.h>
 #include <SD.h>
 
-#include <Bounce.h>
-
 #ifdef __AVR__
 #define FsFile File32
 #endif
@@ -18,7 +16,7 @@ bool btnState = false;
 bool lastBtnState = false;
 float currentMillis; //current ms timestamp
 float btnPressMillis; //ms Timestamp when btn was pressed
-int debounceMillis = 50; //button debounce time in ms
+int debounceMillis = 5; //button debounce time in ms
 
 //SDCard Stuff
 const char *session_root_dir = "/JHR"; //root directory where the files are stored
@@ -265,8 +263,9 @@ void error_blink(int errorCode){
 /// reads if button was pressed
 /// triggers needed actions
 void readBtn() {
+
   btnState = digitalRead(recBtnPin);
-  
+
   if (btnState != lastBtnState){
     if((millis() - btnPressMillis) > debounceMillis){
       //Serial.println("changed");
@@ -274,11 +273,10 @@ void readBtn() {
 
       if (btnState && !lastBtnState) {
         //Serial.println("Press");
-        //stateChanged = true;
       }
 
       if (!btnState && lastBtnState) {
-        Serial.println("Release");
+        //Serial.println("Release");
         stateChanged = true;
       }
       lastBtnState = btnState;
@@ -288,6 +286,7 @@ void readBtn() {
 
 ///print input signal
 ///check if somethings coming in
+///only for debugging purposes
 void printPeak()
 {
 	Serial.println(peak1.read());
