@@ -16,7 +16,7 @@ bool btnState = false;
 bool lastBtnState = false;
 float currentMillis; //current ms timestamp
 float btnPressMillis; //ms Timestamp when btn was pressed
-int debounceMillis = 5; //button debounce time in ms
+int debounceMillis = 10; //button debounce time in ms
 
 //SDCard Stuff
 const char *session_root_dir = "/JHR"; //root directory where the files are stored
@@ -310,7 +310,7 @@ void setup() {
 
   Serial.begin(115200);
 
-  while(!Serial); // wait for serial to be ready
+  delay(20); // wait a bit
 
   //Open SD drive
   if (sd_setup()){
@@ -333,6 +333,15 @@ void setup() {
   //expose SD card to computer when connected via USB
   MTP.begin();
   MTP.addFilesystem(SD, "OR_JHR");
+
+  //setup done, wink
+  digitalWrite(ledPin, true);
+  delay(700);
+  digitalWrite(ledPin, false);
+  delay(200);
+  digitalWrite(ledPin, true);
+  delay(200);
+  digitalWrite(ledPin, false);
 }
 
 void loop() {
@@ -343,7 +352,7 @@ void loop() {
   //write audio stream to SD card if recording is armed
   if (blnRecording) {
     recordingLoop();
-    vuMeter(); //write input peak to LED brightness
+    //vuMeter(); //write input peak to LED brightness
 
   } else {
     //update file system access only when not recording
